@@ -38,10 +38,10 @@ if ! curl -fsSL "$ENC_FILE_URL" -o "$TMP_ENC"; then
   exit 1
 fi
 
-# ===== 2. 解密脚本 =====
+# ===== 3. 解密脚本 =====
 # 尝试使用 Token 解密
 set +e # 暂时允许失败以便捕获错误
-openssl enc -d -aes-256-cbc -salt -in "$TMP_ENC" -out "$TMP_SCRIPT" -k "$ETDATA_TOKEN" 2>/dev/null
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 10000 -salt -in "$TMP_ENC" -out "$TMP_SCRIPT" -k "$ETDATA_TOKEN" 2>/dev/null
 DECRYPT_STATUS=$?
 set -e
 
