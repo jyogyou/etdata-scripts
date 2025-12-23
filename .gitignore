@@ -1,0 +1,3 @@
+GEMINI.md
+scripts/*.sh
+!scripts/*.enc
