@@ -12,6 +12,7 @@ REPO_NAME="etdata-scripts"
 REPO_BRANCH="main"
 
 BASE_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}"
+SCRIPT_BASE_URL="${BASE_RAW_URL}/scripts"
 
 # ===== 必须的环境变量 =====
 : "${ETDATA_TOKEN:?未提供 ETDATA_TOKEN，已终止}"
