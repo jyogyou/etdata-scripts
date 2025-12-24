@@ -4,6 +4,7 @@ set -euo pipefail
 ############################################
 # 易通数据 · 私有脚本库统一执行入口 (加密版)
 # 文件：bin/run.sh
+# 更新：兼容 CentOS 7 OpenSSL (移除 pbkdf2)
 ############################################
 
 # ===== 基础配置 =====
@@ -40,15 +41,17 @@ fi
 
 # ===== 3. 解密脚本 =====
 # 尝试使用 Token 解密
+# 兼容性修改：移除 -pbkdf2 -iter 10000，添加 -md sha256 (兼容 CentOS 7 / OpenSSL 1.0.x)
 set +e # 暂时允许失败以便捕获错误
-openssl enc -d -aes-256-cbc -pbkdf2 -iter 10000 -salt -in "$TMP_ENC" -out "$TMP_SCRIPT" -k "$ETDATA_TOKEN" 2>/dev/null
+openssl enc -d -aes-256-cbc -md sha256 -salt -in "$TMP_ENC" -out "$TMP_SCRIPT" -k "$ETDATA_TOKEN" 2>/dev/null
 DECRYPT_STATUS=$?
 set -e
 
 if [[ $DECRYPT_STATUS -ne 0 ]]; then
   echo "解密失败！可能原因："
-  echo "1. Token 错误（无法解密该文件）"
+  echo "1. Token 错误"
   echo "2. 脚本文件已损坏"
+  echo "3. OpenSSL 版本不兼容 (请确保加密和解密参数一致)"
   exit 1
 fi
 
