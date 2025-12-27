@@ -15,37 +15,59 @@ BASE_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REP
 SCRIPT_BASE_URL="${BASE_RAW_URL}/scripts"
 
 # ===== 必须的环境变量 =====
-: "${ETDATA_TOKEN:?未提供 ETDATA_TOKEN，已终止}"
-: "${ETDATA_SCRIPT:?未提供 ETDATA_SCRIPT（脚本名），已终止}"
-
-# ===== 基础校验：脚本名安全 =====
-if [[ ! "$ETDATA_SCRIPT" =~ ^[a-zA-Z0-9._-]+\.sh$ ]]; then
-  echo "非法脚本名：$ETDATA_SCRIPT"
+if [[ -z "${ETDATA_TOKEN:-}" ]]; then
+  echo "❌ 错误: 未提供 ETDATA_TOKEN"
+  echo "💡 提示: 如果使用了 sudo，请尝试使用 'sudo -E' 以保留环境变量。"
   exit 1
 fi
 
-# ===== 1. 下载加密脚本 =====
-ENC_FILE_URL="${SCRIPT_BASE_URL}/${ETDATA_SCRIPT}.enc"
+if [[ -z "${ETDATA_SCRIPT:-}" ]]; then
+  echo "❌ 错误: 未提供 ETDATA_SCRIPT (脚本名)"
+  exit 1
+fi
 
-# 检查 /tmp 是否可写
-if [[ ! -w /tmp ]]; then
-    echo "错误：/tmp 目录不可写，无法创建临时文件。"
+# ===== 基础校验：脚本名安全 =====
+if [[ ! "$ETDATA_SCRIPT" =~ ^[a-zA-Z0-9._-]+\.sh$ ]]; then
+  echo "❌ 非法脚本名：$ETDATA_SCRIPT"
+  exit 1
+fi
+
+# ===== 1. 准备临时文件 =====
+# 智能选择临时目录：优先使用 TMPDIR，其次 /tmp，如果不可写则使用 HOME
+TARGET_TMP_DIR="${TMPDIR:-/tmp}"
+if [[ ! -w "$TARGET_TMP_DIR" ]]; then
+  echo "⚠️  警告: $TARGET_TMP_DIR 不可写，尝试使用用户主目录 $HOME"
+  TARGET_TMP_DIR="$HOME"
+fi
+
+if [[ ! -w "$TARGET_TMP_DIR" ]]; then
+   echo "❌ 错误: 找不到可写的临时目录 (尝试了 /tmp 和 $HOME)"
+   exit 1
+fi
+
+# 使用 mktemp 创建文件，确保在指定的目录中
+TEMPLATE="etdata-enc-XXXXXX.enc"
+TMP_ENC="$(mktemp -p "$TARGET_TMP_DIR" "$TEMPLATE" 2>/dev/null || mktemp "$TARGET_TMP_DIR/$TEMPLATE")"
+TEMPLATE_SCRIPT="etdata-script-XXXXXX.sh"
+TMP_SCRIPT="$(mktemp -p "$TARGET_TMP_DIR" "$TEMPLATE_SCRIPT" 2>/dev/null || mktemp "$TARGET_TMP_DIR/$TEMPLATE_SCRIPT")"
+
+if [[ ! -f "$TMP_ENC" || ! -f "$TMP_SCRIPT" ]]; then
+    echo "❌ 错误: 无法创建临时文件"
     exit 1
 fi
 
-TMP_ENC="$(mktemp /tmp/etdata-enc-XXXXXX.enc)"
-TMP_SCRIPT="$(mktemp /tmp/etdata-script-XXXXXX.sh)"
+ENC_FILE_URL="${SCRIPT_BASE_URL}/${ETDATA_SCRIPT}.enc"
 
 # 捕获清理信号
 if [[ "${DEBUG:-}" != "true" ]]; then
   trap 'rm -f "$TMP_ENC" "$TMP_SCRIPT"' EXIT
 else
-  echo "Debug 模式开启：临时文件将保留在 $TMP_ENC 和 $TMP_SCRIPT"
-  echo "Debug: 检查 /tmp 空间:"
-  df -h /tmp 2>/dev/null || echo "无法检查磁盘空间"
+  echo "🔧 Debug 模式开启"
+  echo "   临时文件: $TMP_ENC"
+  echo "   解密目标: $TMP_SCRIPT"
 fi
 
-echo "正在下载脚本：$ETDATA_SCRIPT ..."
+echo "⬇️  正在下载脚本：$ETDATA_SCRIPT ..."
 DOWNLOAD_SUCCESS=false
 
 # 优先尝试 curl
