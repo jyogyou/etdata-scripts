@@ -30,7 +30,11 @@ TMP_ENC="$(mktemp /tmp/etdata-enc-XXXXXX.enc)"
 TMP_SCRIPT="$(mktemp /tmp/etdata-script-XXXXXX.sh)"
 
 # 捕获清理信号
-trap 'rm -f "$TMP_ENC" "$TMP_SCRIPT"' EXIT
+if [[ "${DEBUG:-}" != "true" ]]; then
+  trap 'rm -f "$TMP_ENC" "$TMP_SCRIPT"' EXIT
+else
+  echo "Debug 模式开启：临时文件将保留在 $TMP_ENC 和 $TMP_SCRIPT"
+fi
 
 if ! curl -fsSL "$ENC_FILE_URL" -o "$TMP_ENC"; then
   echo "错误：无法下载脚本文件 (HTTP 404)"
@@ -39,10 +43,18 @@ if ! curl -fsSL "$ENC_FILE_URL" -o "$TMP_ENC"; then
 fi
 
 # ===== 3. 解密脚本 =====
+# 检查 openssl 是否存在
+if ! command -v openssl &> /dev/null; then
+  echo "错误: 未找到 openssl 命令"
+  exit 1
+fi
+# 打印版本以便调试
+echo "Debug: OpenSSL version: $(openssl version)"
+
 # 尝试使用 Token 解密
 set +e # 暂时允许失败以便捕获错误
 # 为了兼容 CentOS 7 (OpenSSL 1.0.2)，移除 -pbkdf2 和 -iter，并显式指定 -md sha256
-openssl enc -d -aes-256-cbc -md sha256 -salt -in "$TMP_ENC" -out "$TMP_SCRIPT" -k "$ETDATA_TOKEN" 2>/dev/null
+openssl enc -d -aes-256-cbc -md sha256 -salt -in "$TMP_ENC" -out "$TMP_SCRIPT" -k "$ETDATA_TOKEN"
 DECRYPT_STATUS=$?
 set -e
 
