@@ -4,6 +4,7 @@
 
 *   **安全增强**: 仓库中只存储加密后的 `.enc` 文件，即使文件被公开下载，无 Token 也无法查看源码。
 *   **统一入口**: 客户端通过 `run.sh` 自动完成下载、解密、执行（现支持 `.sh` 与 `.ps1`）。
+*   **Windows 无 Bash 场景**: 可直接使用 `run.ps1` 调用，不依赖 Git Bash。
 
 ## 目录结构
 
@@ -11,6 +12,7 @@
 etdata-scripts/
 ├── bin/
 │   ├── run.sh          # 客户端入口：负责下载 .enc -> 解密 -> 执行
+│   ├── run.ps1         # PowerShell 客户端入口：不依赖 bash
 │   └── encrypt.sh      # 管理员工具：负责将 .sh/.ps1 -> 加密为 .enc
 ├── scripts/
 │   ├── ssh-motd-v5.sh      # (本地开发用源码，不一定要上传)
@@ -40,6 +42,33 @@ Windows（Git Bash）执行 `.ps1.enc` 示例：
 ```bash
 curl -fsSL https://raw.githubusercontent.com/username/etdata-scripts/main/bin/run.sh \
   | ETDATA_TOKEN="MySecret2025" ETDATA_SCRIPT="setup_windows_ai_cli.ps1" bash -s -- -Tools qwen
+```
+
+Windows（纯 PowerShell，不依赖 Git Bash）：
+
+```powershell
+$env:ETDATA_TOKEN = "MySecret2025"
+$env:ETDATA_SCRIPT = "setup_windows_ai_cli.ps1"
+$env:ETDATA_REF = "main"
+iwr -UseBasicParsing https://raw.githubusercontent.com/username/etdata-scripts/main/bin/run.ps1 -OutFile run.ps1
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\run.ps1 -Tools qwen
+```
+
+如果提示找不到 `openssl`，可额外指定：
+
+```powershell
+$env:ETDATA_OPENSSL = "C:\Path\To\openssl.exe"
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\run.ps1 -Tools qwen
+```
+
+如果你使用代理地址（例如 gh-proxy），可这样：
+
+```powershell
+$env:ETDATA_TOKEN = "MySecret2025"
+$env:ETDATA_SCRIPT = "setup_windows_ai_cli.ps1"
+$env:ETDATA_RAW_BASE = "https://gh-proxy.com/https://raw.githubusercontent.com/username/etdata-scripts/main"
+iwr -UseBasicParsing https://gh-proxy.com/https://raw.githubusercontent.com/username/etdata-scripts/main/bin/run.ps1 -OutFile run.ps1
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\run.ps1 -Tools qwen
 ```
 
 ## 管理员指南
