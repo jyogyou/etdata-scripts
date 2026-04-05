@@ -9,7 +9,7 @@ set -euo pipefail
 # ===== 基础配置 =====
 REPO_OWNER="jyogyou"
 REPO_NAME="etdata-scripts"
-REPO_BRANCH="main"
+REPO_BRANCH="${ETDATA_REF:-main}"
 
 BASE_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}"
 SCRIPT_BASE_URL="${BASE_RAW_URL}/scripts"
@@ -27,8 +27,8 @@ if [[ -z "${ETDATA_SCRIPT:-}" ]]; then
 fi
 
 # ===== 基础校验：脚本名安全 =====
-if [[ ! "$ETDATA_SCRIPT" =~ ^[a-zA-Z0-9._-]+\.sh$ ]]; then
-  echo "❌ 非法脚本名：$ETDATA_SCRIPT"
+if [[ ! "$ETDATA_SCRIPT" =~ ^[a-zA-Z0-9._-]+\.(sh|ps1)$ ]]; then
+  echo "❌ 非法脚本名：$ETDATA_SCRIPT (仅支持 .sh / .ps1)"
   exit 1
 fi
 
@@ -48,7 +48,8 @@ fi
 # 使用 mktemp 创建文件，确保在指定的目录中
 TEMPLATE="etdata-enc-XXXXXX.enc"
 TMP_ENC="$(mktemp -p "$TARGET_TMP_DIR" "$TEMPLATE" 2>/dev/null || mktemp "$TARGET_TMP_DIR/$TEMPLATE")"
-TEMPLATE_SCRIPT="etdata-script-XXXXXX.sh"
+SCRIPT_EXT="${ETDATA_SCRIPT##*.}"
+TEMPLATE_SCRIPT="etdata-script-XXXXXX.${SCRIPT_EXT}"
 TMP_SCRIPT="$(mktemp -p "$TARGET_TMP_DIR" "$TEMPLATE_SCRIPT" 2>/dev/null || mktemp "$TARGET_TMP_DIR/$TEMPLATE_SCRIPT")"
 
 if [[ ! -f "$TMP_ENC" || ! -f "$TMP_SCRIPT" ]]; then
@@ -140,6 +141,24 @@ chmod +x "$TMP_SCRIPT"
 
 # ===== 4. 执行脚本 =====
 echo ">> 易通数据脚本验证通过，正在执行：${ETDATA_SCRIPT}"
-bash "$TMP_SCRIPT"
 
-exit 0
+if [[ "$SCRIPT_EXT" == "sh" ]]; then
+  bash "$TMP_SCRIPT" "$@"
+  exit $?
+fi
+
+if [[ "$SCRIPT_EXT" == "ps1" ]]; then
+  if command -v pwsh >/dev/null 2>&1; then
+    pwsh -NoProfile -ExecutionPolicy Bypass -File "$TMP_SCRIPT" "$@"
+    exit $?
+  fi
+  if command -v powershell >/dev/null 2>&1; then
+    powershell -NoProfile -ExecutionPolicy Bypass -File "$TMP_SCRIPT" "$@"
+    exit $?
+  fi
+  echo "错误: 未找到 pwsh 或 powershell，无法执行 .ps1 脚本。"
+  exit 1
+fi
+
+echo "错误: 不支持的脚本类型。"
+exit 1

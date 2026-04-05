@@ -3,7 +3,7 @@
 基于 **方案B：两段式加密包** 架构设计的运维脚本管理系统。
 
 *   **安全增强**: 仓库中只存储加密后的 `.enc` 文件，即使文件被公开下载，无 Token 也无法查看源码。
-*   **统一入口**: 客户端通过 `run.sh` 自动完成下载、解密、执行。
+*   **统一入口**: 客户端通过 `run.sh` 自动完成下载、解密、执行（现支持 `.sh` 与 `.ps1`）。
 
 ## 目录结构
 
@@ -11,7 +11,7 @@
 etdata-scripts/
 ├── bin/
 │   ├── run.sh          # 客户端入口：负责下载 .enc -> 解密 -> 执行
-│   └── encrypt.sh      # 管理员工具：负责将 .sh -> 加密为 .enc
+│   └── encrypt.sh      # 管理员工具：负责将 .sh/.ps1 -> 加密为 .enc
 ├── scripts/
 │   ├── ssh-motd-v5.sh      # (本地开发用源码，不一定要上传)
 │   └── ssh-motd-v5.sh.enc  # (实际上传的加密文件)
@@ -22,7 +22,8 @@ etdata-scripts/
 
 ## 客户端使用 (统一入口)
 
-客户只需一条命令。`ETDATA_TOKEN` 既是鉴权凭证，也是解密密码。
+客户只需一条命令。`ETDATA_TOKEN` 既是鉴权凭证，也是解密密码。  
+`ETDATA_REF` 可选，默认 `main`。
 
 ```bash
 # 格式
@@ -34,6 +35,13 @@ curl -fsSL https://raw.githubusercontent.com/username/etdata-scripts/main/bin/ru
   | ETDATA_TOKEN="MySecret2025" ETDATA_SCRIPT="ssh-motd-v5.sh" bash
 ```
 
+Windows（Git Bash）执行 `.ps1.enc` 示例：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/username/etdata-scripts/main/bin/run.sh \
+  | ETDATA_TOKEN="MySecret2025" ETDATA_SCRIPT="setup_windows_ai_cli.ps1" bash -s -- -Tools qwen
+```
+
 ## 管理员指南
 
 ### 1. 发布新脚本 (加密流程)
@@ -42,14 +50,15 @@ curl -fsSL https://raw.githubusercontent.com/username/etdata-scripts/main/bin/ru
 
 **步骤：**
 
-1.  编写/更新脚本，例如 `scripts/my-tool.sh`。
+1.  编写/更新脚本，例如 `my-tool.sh` 或 `setup_windows_ai_cli.ps1`。
 2.  运行加密工具 (假设你在 Git Bash 或 Linux 下)：
     ```bash
-    # 用法: ./bin/encrypt.sh <文件名> <Token密码>
+    # 用法: ./bin/encrypt.sh <脚本路径或文件名> <Token密码>
     ./bin/encrypt.sh my-tool.sh MySecret2025
+    ./bin/encrypt.sh setup_windows_ai_cli.ps1 MySecret2025
     ```
-3.  这将生成 `scripts/my-tool.sh.enc`。
-4.  **只提交** `.enc` 文件到 GitHub (源码 `.sh` 可以根据需要选择是否提交，建议 .gitignore 忽略以保密)。
+3.  这将生成 `<输入文件路径>.enc`。
+4.  把生成的 `.enc` 文件放入 `scripts/` 并提交到 GitHub（源码文件按需自行保留，不必上传）。
     ```bash
     git add scripts/*.enc
     git commit -m "Add encrypted script"
