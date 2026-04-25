@@ -142,18 +142,28 @@ chmod +x "$TMP_SCRIPT"
 # ===== 4. 执行脚本 =====
 echo ">> 易通数据脚本验证通过，正在执行：${ETDATA_SCRIPT}"
 
+# 当 run.sh 通过 `curl | bash` 执行时，标准输入是 curl 管道。
+# 如果被解密脚本需要交互式 read，必须改为从真实终端 /dev/tty 读取。
+run_from_tty_if_available() {
+  if [[ -r /dev/tty ]]; then
+    "$@" < /dev/tty
+  else
+    "$@"
+  fi
+}
+
 if [[ "$SCRIPT_EXT" == "sh" ]]; then
-  bash "$TMP_SCRIPT" "$@"
+  run_from_tty_if_available bash "$TMP_SCRIPT" "$@"
   exit $?
 fi
 
 if [[ "$SCRIPT_EXT" == "ps1" ]]; then
   if command -v pwsh >/dev/null 2>&1; then
-    pwsh -NoProfile -ExecutionPolicy Bypass -File "$TMP_SCRIPT" "$@"
+    run_from_tty_if_available pwsh -NoProfile -ExecutionPolicy Bypass -File "$TMP_SCRIPT" "$@"
     exit $?
   fi
   if command -v powershell >/dev/null 2>&1; then
-    powershell -NoProfile -ExecutionPolicy Bypass -File "$TMP_SCRIPT" "$@"
+    run_from_tty_if_available powershell -NoProfile -ExecutionPolicy Bypass -File "$TMP_SCRIPT" "$@"
     exit $?
   fi
   echo "错误: 未找到 pwsh 或 powershell，无法执行 .ps1 脚本。"

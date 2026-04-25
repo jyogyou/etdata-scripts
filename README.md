@@ -27,6 +27,8 @@ etdata-scripts/
 客户只需一条命令。`ETDATA_TOKEN` 既是鉴权凭证，也是解密密码。  
 `ETDATA_REF` 可选，默认 `main`。
 
+`run.sh` 支持交互式脚本：当入口通过 `curl | bash` 运行时，解密后的子脚本会自动从 `/dev/tty` 读取用户输入，避免 `read` 误读 curl 管道。
+
 ```bash
 # 格式
 curl -fsSL https://raw.githubusercontent.com/<你的GitHub用户名>/etdata-scripts/main/bin/run.sh \
